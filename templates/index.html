@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI 电脑故障诊断助手</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header>
+            <h1>AI 电脑故障诊断助手</h1>
+            <p>描述你遇到的电脑问题，获取故障分析与解决建议</p>
+        </header>
+
+        <main>
+
+            <!-- 故障输入 -->
+
+            <section class="input-card">
+
+                <h2>描述你的问题</h2>
+
+                <textarea
+                    id="problem"
+                    rows="8"
+                    placeholder="例如：GTA4 启动后闪退，Windows 11，已经更新显卡驱动……"></textarea>
+
+                <button id="diagnoseButton">
+                    开始诊断
+                </button>
+
+            </section>
+
+
+            <!-- 诊断结果 -->
+
+            <section class="result-card">
+
+                <h2>诊断结果</h2>
+
+                <div id="result">
+
+                    <p class="placeholder">
+                        诊断结果将在这里显示
+                    </p>
+
+                </div>
+
+            </section>
+
+
+            <!-- 历史记录 -->
+
+            <section class="history-card">
+
+                <div class="history-header">
+
+                    <h2>诊断历史</h2>
+
+                    <button id="refreshHistoryButton">
+                        刷新记录
+                    </button>
+
+                </div>
+
+                <div id="history">
+
+                    <p class="placeholder">
+                        正在加载历史记录……
+                    </p>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+    <script>
+
+        const button =
+            document.getElementById("diagnoseButton");
+
+        const problemInput =
+            document.getElementById("problem");
+
+        const result =
+            document.getElementById("result");
+
+        const historyContainer =
+            document.getElementById("history");
+
+        const refreshHistoryButton =
+            document.getElementById("refreshHistoryButton");
+
+
+        // =========================
+        // 开始诊断
+        // =========================
+
+        button.addEventListener("click", async function () {
+
+            const problem = problemInput.value;
+
+            if (problem.trim() === "") {
+
+                result.innerHTML = `
+                    <p class="error">
+                        请先描述你遇到的问题。
+                    </p>
+                `;
+
+                return;
+            }
+
+
+            button.disabled = true;
+
+            button.innerText = "正在分析……";
+
+
+            result.innerHTML = `
+                <p class="loading">
+                    正在分析你的问题，请稍候……
+                </p>
+            `;
+
+
+            try {
+
+                const response = await fetch("/diagnose", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        problem: problem
+                    })
+
+                });
+
+
+                const data = await response.json();
+
+
+                showDiagnosis(data);
+
+
+                // 诊断完成后刷新历史记录
+
+                loadHistory();
+
+
+            } catch (error) {
+
+                result.innerHTML = `
+                    <p class="error">
+                        诊断失败，请检查服务器是否正常运行。
+                    </p>
+                `;
+
+            }
+
+
+            button.disabled = false;
+
+            button.innerText = "开始诊断";
+
+        });
+
+
+        // =========================
+        // 显示诊断结果
+        // =========================
+
+        function showDiagnosis(data) {
+
+            result.innerHTML = `
+
+                <div class="result-section">
+
+                    <h3>问题分析</h3>
+
+                    <p>
+                        ${data.summary}
+                    </p>
+
+                </div>
+
+
+                <div class="result-section">
+
+                    <h3>可能原因</h3>
+
+                    <ul>
+
+                        ${data.causes.map(
+                            cause => `<li>${cause}</li>`
+                        ).join("")}
+
+                    </ul>
+
+                </div>
+
+
+                <div class="result-section">
+
+                    <h3>排查步骤</h3>
+
+                    <ol>
+
+                        ${data.steps.map(
+                            step => `<li>${step}</li>`
+                        ).join("")}
+
+                    </ol>
+
+                </div>
+
+
+                <div class="result-section">
+
+                    <h3>建议解决方案</h3>
+
+                    <ul>
+
+                        ${data.suggestions.map(
+                            suggestion => `<li>${suggestion}</li>`
+                        ).join("")}
+
+                    </ul>
+
+                </div>
+
+
+                <div class="mode-info">
+
+                    当前模式：
+                    <strong>${data.mode}</strong>
+
+                </div>
+
+            `;
+
+        }
+
+
+        // =========================
+        // 加载历史记录
+        // =========================
+
+        async function loadHistory() {
+
+            try {
+
+                const response =
+                    await fetch("/history");
+
+                const records =
+                    await response.json();
+
+
+                if (records.length === 0) {
+
+                    historyContainer.innerHTML = `
+                        <p class="placeholder">
+                            暂时没有诊断记录
+                        </p>
+                    `;
+
+                    return;
+                }
+
+
+                historyContainer.innerHTML =
+                    records.map(record => `
+
+                        <div
+                            class="history-item"
+                            onclick="showHistoryDetail(${record.id})"
+                        >
+
+                            <div class="history-problem">
+
+                                ${record.problem}
+
+                            </div>
+
+
+                            <div class="history-info">
+
+                                <span>
+                                    ${record.mode} 模式
+                                </span>
+
+                                <span>
+                                    ${record.created_at}
+                                </span>
+
+                            </div>
+
+
+                            <div class="history-bottom">
+
+                                <div class="history-hint">
+
+                                    点击查看完整诊断 →
+
+                                </div>
+
+
+                                <button
+                                    class="delete-button"
+                                    onclick="deleteHistory(event, ${record.id})"
+                                >
+                                    删除
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    `).join("");
+
+
+            } catch (error) {
+
+                historyContainer.innerHTML = `
+                    <p class="error">
+                        历史记录加载失败。
+                    </p>
+                `;
+
+            }
+
+        }
+
+
+        // =========================
+        // 查看历史记录详情
+        // =========================
+
+        async function showHistoryDetail(id) {
+
+            try {
+
+                const response =
+                    await fetch("/history");
+
+                const records =
+                    await response.json();
+
+
+                const record =
+                    records.find(item => item.id === id);
+
+
+                if (!record) {
+
+                    alert("找不到这条诊断记录。");
+
+                    return;
+
+                }
+
+
+                showDiagnosis({
+
+                    summary: record.summary,
+
+                    causes: record.causes || [],
+
+                    steps: record.steps || [],
+
+                    suggestions: record.suggestions || [],
+
+                    mode: record.mode
+
+                });
+
+
+                // 滚动到诊断结果
+
+                document
+                    .querySelector(".result-card")
+                    .scrollIntoView({
+                        behavior: "smooth"
+                    });
+
+
+            } catch (error) {
+
+                alert("读取历史记录失败。");
+
+            }
+
+        }
+
+
+        // =========================
+        // 删除历史记录
+        // =========================
+
+        async function deleteHistory(event, id) {
+
+            // 防止点击删除按钮时打开历史详情
+
+            event.stopPropagation();
+
+
+            const confirmed =
+                confirm("确定要删除这条诊断记录吗？");
+
+
+            if (!confirmed) {
+
+                return;
+
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(`/history/${id}`, {
+
+                        method: "DELETE"
+
+                    });
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    alert(
+                        data.message || "删除失败"
+                    );
+
+                    return;
+
+                }
+
+
+                // 删除成功后刷新历史记录
+
+                loadHistory();
+
+
+            } catch (error) {
+
+                alert(
+                    "删除失败，请检查服务器是否正常运行。"
+                );
+
+            }
+
+        }
+
+
+        // =========================
+        // 刷新历史记录
+        // =========================
+
+        refreshHistoryButton.addEventListener(
+            "click",
+            loadHistory
+        );
+
+
+        // =========================
+        // 页面打开时自动加载
+        // =========================
+
+        loadHistory();
+
+    </script>
+
+</body>
+
+</html>
